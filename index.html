@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart Habit Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0f1221;
+    --panel: #171a2f;
+    --panel-2: #1f2340;
+    --text: #e9ecf1;
+    --muted: #9aa3b2;
+    --brand: #7c5cff;
+    --brand-2: #37e0b7;
+    --danger: #ff5c7a;
+    --warn: #ffcf5c;
+    --ok: #37e08b;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius: 18px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    background: radial-gradient(1000px 600px at 80% -10%, rgba(124,92,255,.18), transparent 60%),
+                linear-gradient(180deg, #0f1221, #0b0e1a 55%);
+    color:var(--text);
+  }
+  .app{display:grid; grid-template-columns: 320px 1fr; gap:22px; padding:22px; max-width:1400px; margin:0 auto}
+  header{
+    grid-column:1/-1; display:flex; gap:16px; align-items:center; justify-content:space-between; padding:6px 6px 0 6px;
+  }
+  .logo{display:flex; gap:12px; align-items:center}
+  .logo .dot{width:14px; height:14px; border-radius:50%; background:linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow:0 0 0 6px rgba(124,92,255,.15)}
+  .logo h1{font-size:20px; margin:0; font-weight:800; letter-spacing:.2px}
+  .right-actions{display:flex; gap:10px; align-items:center}
+  button, .btn{appearance:none; background:var(--brand); border:none; color:white; padding:10px 14px; border-radius:12px; font-weight:700; cursor:pointer; box-shadow:var(--shadow); transition:.2s transform}
+  button:hover{transform:translateY(-1px)}
+  .secondary{background:var(--panel-2); color:var(--text); font-weight:600}
+  .ghost{background:transparent; border:1px solid #2a2f58}
+  .danger{background:var(--danger)}
+
+  .panel{background:var(--panel); border:1px solid #23284e; border-radius:var(--radius); box-shadow:var(--shadow)}
+  .panel h3{margin:0 0 14px 0; font-size:16px; letter-spacing:.3px}
+  .panel .inner{padding:18px}
+
+  .sidebar{display:flex; flex-direction:column; gap:22px}
+  .grid{display:grid; grid-template-columns: repeat(12, 1fr); gap:22px}
+
+  .card{background:var(--panel); border:1px solid #23284e; border-radius:var(--radius); box-shadow:var(--shadow)}
+  .card .inner{padding:18px}
+
+  input, select, textarea{width:100%; background:#0c1024; border:1px solid #2c346a; color:var(--text); padding:10px 12px; border-radius:12px}
+  label{display:block; color:var(--muted); font-size:12px; margin:10px 0 6px}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+
+  .task-list{display:flex; flex-direction:column; gap:10px}
+  .task{display:grid; grid-template-columns: 28px 1fr auto; gap:12px; align-items:center; padding:12px; border:1px solid #2a2f58; border-radius:14px; background:linear-gradient(180deg, #181c36, #151938)}
+  .task .dot{width:18px; height:18px; border-radius:50%; background:var(--brand-2)}
+  .task .name{font-weight:700}
+  .task .meta{font-size:12px; color:var(--muted)}
+  .task .actions{display:flex; gap:6px}
+
+  .kanban{display:grid; grid-template-columns: repeat(3, 1fr); gap:16px}
+  .kanban .col{min-height:120px; background:var(--panel-2); border:1px dashed #2a2f58; border-radius:14px; padding:10px}
+  .kanban .col h4{margin:6px 8px 12px; font-size:13px; color:var(--muted)}
+
+  .tag{font-size:11px; padding:4px 8px; border-radius:999px; background:#0e1330; border:1px solid #364080; color:#b8c0ff}
+
+  .stats{display:grid; grid-template-columns: repeat(4, 1fr); gap:16px}
+  .stat{background:var(--panel); border:1px solid #23284e; border-radius:14px; padding:14px}
+  .stat h5{margin:0; font-size:12px; color:var(--muted)}
+  .stat .value{font-size:22px; font-weight:800; margin-top:8px}
+
+  .footer-note{color:#9aa3b2; font-size:12px; opacity:.8; margin-top:8px}
+
+  .toast{position:fixed; bottom:20px; right:20px; background:var(--panel); padding:12px 14px; border:1px solid #2a2f58; border-radius:12px; box-shadow:var(--shadow); display:none}
+
+  dialog.modal{width:min(650px, 92vw); border:1px solid #2a2f58; border-radius:16px; background:var(--panel); color:var(--text)}
+  dialog::backdrop{background:rgba(3,6,18,.6)}
+
+  @media (max-width: 1000px){
+    .app{grid-template-columns: 1fr}
+    .kanban{grid-template-columns:1fr}
+    .stats{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo"><span class="dot"></span><h1>Smart Habit Planner</h1><span class="tag">beta</span></div>
+      <div class="right-actions">
+        <button class="ghost" id="btn-notify">Enable Notifications</button>
+        <button class="secondary" id="btn-weekly">Weekly Report</button>
+        <button id="btn-new-plan">Plan Next 7 Days</button>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="inner">
+          <h3>Add / Edit Task</h3>
+          <form id="task-form">
+            <input type="hidden" id="task-id" />
+            <label>Title</label>
+            <input id="title" placeholder="e.g., Wake up, Bathing, Study Math, Read 30min" required />
+            <div class="row">
+              <div>
+                <label>Category</label>
+                <select id="category">
+                  <option>Basic</option>
+                  <option>Health</option>
+                  <option>Study</option>
+                  <option>Work</option>
+                  <option>Reading</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div>
+                <label>Type</label>
+                <select id="type">
+                  <option value="habit">Daily Habit</option>
+                  <option value="oneoff">One‑off</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Start Time</label>
+                <input id="time" type="time" required />
+              </div>
+              <div>
+                <label>Duration (mins)</label>
+                <input id="duration" type="number" min="1" step="1" value="30" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Reminder Lead Time</label>
+                <select id="lead">
+                  <option value="0">At time</option>
+                  <option value="5">5 min before</option>
+                  <option value="15">15 min before</option>
+                  <option value="60">1 hour before</option>
+                  <option value="1440">1 day before</option>
+                </select>
+              </div>
+              <div>
+                <label>Check‑in Offset (Start)</label>
+                <select id="checkin">
+                  <option value="5">5 min after start</option>
+                  <option value="10">10 min after start</option>
+                  <option value="0">Immediately</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Days (for Habit)</label>
+                <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px">
+                  <label><input type="checkbox" class="day" value="0" checked> Sun</label>
+                  <label><input type="checkbox" class="day" value="1" checked> Mon</label>
+                  <label><input type="checkbox" class="day" value="2" checked> Tue</label>
+                  <label><input type="checkbox" class="day" value="3" checked> Wed</label>
+                  <label><input type="checkbox" class="day" value="4" checked> Thu</label>
+                  <label><input type="checkbox" class="day" value="5" checked> Fri</label>
+                  <label><input type="checkbox" class="day" value="6" checked> Sat</label>
+                </div>
+              </div>
+              <div>
+                <label>One‑off Date</label>
+                <input id="oneoff-date" type="date" />
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px">
+              <button type="submit">Save Task</button>
+              <button type="button" class="secondary" id="reset-form">Reset</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="inner">
+          <h3>Today Quick Add</h3>
+          <form id="quick-form">
+            <div class="row">
+              <input id="quick-title" placeholder="e.g., Read 10 pages" />
+              <input id="quick-time" type="time" />
+            </div>
+            <div class="row">
+              <input id="quick-duration" type="number" min="1" step="1" value="20" />
+              <select id="quick-lead">
+                <option value="0">At time</option>
+                <option value="5">5 min before</option>
+                <option value="15">15 min before</option>
+                <option value="60">1 hour before</option>
+              </select>
+            </div>
+            <button type="submit" style="margin-top:10px">Add to Today</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="inner">
+          <h3>Data Control</h3>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="secondary" id="export">Export JSON</button>
+            <button class="ghost" id="import">Import JSON</button>
+            <button class="danger" id="wipe">Wipe All</button>
+          </div>
+          <div class="footer-note">Your data is saved locally in this browser via <b>localStorage</b>. To receive reminders, keep this tab open and allow notifications.</div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="card">
+        <div class="inner">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+            <h3 style="margin:0">Today — <span id="today-label"></span></h3>
+            <div style="display:flex; gap:8px; align-items:center">
+              <span class="tag" id="procrastination-tag">Procrastinations today: 0</span>
+              <button class="ghost" id="refresh">Refresh</button>
+            </div>
+          </div>
+
+          <div class="kanban" style="margin-top:14px">
+            <div class="col" id="col-planned">
+              <h4>Planned</h4>
+              <div class="task-list" id="list-planned"></div>
+            </div>
+            <div class="col" id="col-progress">
+              <h4>In Progress</h4>
+              <div class="task-list" id="list-progress"></div>
+            </div>
+            <div class="col" id="col-done">
+              <h4>Completed</h4>
+              <div class="task-list" id="list-done"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:22px">
+        <div class="card" style="grid-column: span 7">
+          <div class="inner">
+            <h3 style="margin:0 0 10px">Weekly Progress</h3>
+            <div class="stats" id="stats">
+              <div class="stat"><h5>Tasks Completed</h5><div class="value" id="stat-complete">0</div></div>
+              <div class="stat"><h5>Planned Tasks</h5><div class="value" id="stat-planned">0</div></div>
+              <div class="stat"><h5>Procrastinations</h5><div class="value" id="stat-proc">0</div></div>
+              <div class="stat"><h5>Completion Rate</h5><div class="value" id="stat-rate">0%</div></div>
+            </div>
+            <canvas id="chart" height="160" style="margin-top:16px"></canvas>
+            <div class="footer-note">Automatic weekly summary every Sunday 18:00 (local).</div>
+          </div>
+        </div>
+        <div class="card" style="grid-column: span 5">
+          <div class="inner">
+            <h3 style="margin:0 0 10px">Upcoming (Next 7 Days)</h3>
+            <div id="upcoming"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Modals -->
+  <dialog class="modal" id="modal-checkin">
+    <form method="dialog" id="checkin-form">
+      <div class="inner">
+        <h3>Check‑in</h3>
+        <div id="checkin-text" style="margin:8px 0 14px"></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button value="started">Yes, I started</button>
+          <button class="secondary" value="later">Will do in a few minutes</button>
+          <button class="ghost" value="done">Already done</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="modal-done">
+    <form method="dialog" id="done-form">
+      <div class="inner">
+        <h3>Finish Check</h3>
+        <div id="done-text" style="margin:8px 0 14px"></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button value="completed">Yes, completed</button>
+          <button class="secondary" value="notyet">Not yet</button>
+          <button class="ghost" value="snooze">Snooze 10m</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="modal-plan">
+    <form method="dialog" id="plan-form">
+      <div class="inner">
+        <h3>Plan the Next 7 Days</h3>
+        <p style="margin-top:0; color:var(--muted)">Add one‑off tasks or adjust times for habits. You can always edit later.</p>
+        <div id="plan-days" style="display:grid; grid-template-columns:1fr; gap:12px; max-height:50vh; overflow:auto"></div>
+        <div style="display:flex; gap:8px; margin-top:12px">
+          <button value="save">Save Plan</button>
+          <button class="secondary" value="cancel">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="modal" id="modal-weekly">
+    <form method="dialog">
+      <div class="inner">
+        <h3>Your Weekly Report</h3>
+        <div id="weekly-html"></div>
+        <div style="margin-top:12px; display:flex; gap:8px">
+          <button value="ok">OK</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+  // ====== Storage Helpers ======
+  const db = {
+    load(){
+      return JSON.parse(localStorage.getItem('shp:data')||'{"tasks":[],"events":{}}');
+    },
+    save(data){
+      localStorage.setItem('shp:data', JSON.stringify(data));
+    }
+  }
+
+  const state = {
+    data: db.load(),
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    chart: null,
+    pendingCheck: null, // {taskInstId, type}
+  }
+
+  const uid = () => Math.random().toString(36).slice(2,10);
+  const todayKey = (d=new Date()) => d.toISOString().slice(0,10);
+  const toMinutes = t => {
+    const [h,m] = t.split(':').map(Number); return h*60+m;
+  }
+  const fromMinutes = mins => {
+    const h = Math.floor(mins/60).toString().padStart(2,'0');
+    const m = Math.floor(mins%60).toString().padStart(2,'0');
+    return `${h}:${m}`;
+  }
+  const dayName = d=> d.toLocaleDateString(undefined,{weekday:'long', day:'2-digit', month:'short'});
+
+  // ====== Notification Helpers ======
+  async function ensureNotifications(){
+    if(!('Notification' in window)) return toast('Notifications not supported in this browser');
+    if(Notification.permission === 'granted') return true;
+    const p = await Notification.requestPermission();
+    return p==='granted';
+  }
+  function notify(title, body){
+    try{ new Notification(title,{ body }); }catch(e){ /* ignore */ }
+  }
+
+  // ====== Task Model ======
+  // task: {id,title,category,type('habit'|'oneoff'), time:"HH:MM", duration, lead, checkin, days:[0..6], date?}
+  // event(day): { [taskInstanceId]: {taskId, title, schedMin, startMin?, endMin?, status:'planned'|'progress'|'done', procrastinated?:true} ; meta: {procCount} }
+
+  function scheduleInstancesForDay(date){
+    const day = new Date(date);
+    const dow = day.getDay();
+    const key = date.toISOString().slice(0,10);
+    state.data.events[key] ||= { meta:{procCount:0} };
+    // add planned instances
+    for(const t of state.data.tasks){
+      if(t.type==='habit'){
+        if(!t.days || t.days.includes(dow)) addInstance(key, t, date);
+      } else if (t.type==='oneoff'){
+        if(t.date === key) addInstance(key, t, date);
+      }
+    }
+    db.save(state.data);
+  }
+
+  function addInstance(dayKey, t){
+    // if instance of same task/time already exists, skip
+    const ev = state.data.events[dayKey];
+    const exists = Object.values(ev).some(v=> v && v.taskId===t.id && v.schedMin===toMinutes(t.time));
+    if(exists) return;
+    const id = uid();
+    ev[id] = { taskId:t.id, title:t.title, category:t.category, schedMin:toMinutes(t.time), duration: Number(t.duration||30), lead:Number(t.lead||0), checkin:Number(t.checkin||5), status:'planned'};
+  }
+
+  // ====== UI Rendering ======
+  function renderToday(){
+    const key = todayKey(new Date());
+    document.getElementById('today-label').textContent = dayName(new Date());
+    const ev = state.data.events[key] || {meta:{procCount:0}};
+
+    const colP = document.getElementById('list-planned');
+    const colI = document.getElementById('list-progress');
+    const colD = document.getElementById('list-done');
+    colP.innerHTML = colI.innerHTML = colD.innerHTML = '';
+
+    const entries = Object.entries(ev).filter(([k,v])=> k!=='meta').sort((a,b)=> a[1].schedMin - b[1].schedMin);
+    for(const [id,inst] of entries){
+      const el = document.createElement('div');
+      el.className='task';
+      el.innerHTML = `<div class="dot"></div>
+        <div>
+          <div class="name">${inst.title}</div>
+          <div class="meta">${fromMinutes(inst.schedMin)} · ${inst.duration}m · ${inst.category||'General'}</div>
+        </div>
+        <div class="actions"></div>`;
+      const actions = el.querySelector('.actions');
+      const mk = (label, cls, fn)=>{ const b=document.createElement('button'); b.textContent=label; if(cls) b.classList.add(cls); b.onclick=fn; return b; };
+      if(inst.status==='planned'){
+        actions.append(
+          mk('Start', null, ()=>startInstance(key,id,false)),
+          mk('Done', 'ghost', ()=>finishInstance(key,id,true)),
+          mk('Snooze 10m', 'secondary', ()=>snoozeInstance(key,id,10))
+        );
+        colP.appendChild(el);
+      } else if(inst.status==='progress'){
+        actions.append(
+          mk('Finish', null, ()=>finishInstance(key,id,true)),
+          mk('Cancel', 'secondary', ()=>revertInstance(key,id))
+        );
+        colI.appendChild(el);
+      } else if(inst.status==='done'){
+        actions.append(
+          mk('Undo', 'secondary', ()=>reopenInstance(key,id))
+        );
+        colD.appendChild(el);
+      }
+    }
+
+    document.getElementById('procrastination-tag').textContent = `Procrastinations today: ${(ev.meta?.procCount)||0}`;
+    renderUpcoming();
+    renderWeekly();
+  }
+
+  function renderUpcoming(){
+    const wrap = document.getElementById('upcoming');
+    wrap.innerHTML='';
+    const today = new Date();
+    for(let i=0;i<7;i++){
+      const d = new Date(today); d.setDate(today.getDate()+i);
+      const key = todayKey(d);
+      const ev = state.data.events[key]||{};
+      const items = Object.entries(ev).filter(([k,v])=>k!=='meta').sort((a,b)=>a[1].schedMin-b[1].schedMin);
+      const col = document.createElement('div');
+      col.style.marginBottom='10px';
+      col.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0 4px"><b>${dayName(d)}</b><span class="tag">${items.length} task(s)</span></div>`;
+      for(const [id,inst] of items){
+        const line = document.createElement('div');
+        line.className='meta';
+        line.style.margin='4px 0 6px';
+        line.textContent = `${fromMinutes(inst.schedMin)} · ${inst.title}`;
+        col.appendChild(line);
+      }
+      if(items.length===0){
+        const empty = document.createElement('div'); empty.className='meta'; empty.textContent = 'No tasks yet.'; col.appendChild(empty);
+      }
+      wrap.appendChild(col);
+    }
+  }
+
+  function renderWeekly(){
+    // compute stats for last 7 days
+    const today = new Date();
+    const dates = [];
+    let done=0, planned=0, proc=0;
+    const dayCompletes=[], dayProcs=[];
+    for(let i=6;i>=0;i--){
+      const d=new Date(today); d.setDate(today.getDate()-i); const key=todayKey(d); dates.push(d.toLocaleDateString(undefined,{weekday:'short'}));
+      const ev=state.data.events[key]||{}; let p=0, dn=0, pr=0;
+      for(const [k,v] of Object.entries(ev)){
+        if(k==='meta') { pr = ev.meta?.procCount||0; continue; }
+        p++; if(v.status==='done') dn++;
+      }
+      planned += p; done += dn; proc += pr; dayCompletes.push(dn); dayProcs.push(pr);
+    }
+    const rate = planned? Math.round(done/planned*100):0;
+    document.getElementById('stat-complete').textContent = done;
+    document.getElementById('stat-planned').textContent = planned;
+    document.getElementById('stat-proc').textContent = proc;
+    document.getElementById('stat-rate').textContent = rate+"%";
+
+    const ctx = document.getElementById('chart');
+    if(state.chart){ state.chart.data.labels = dates; state.chart.data.datasets[0].data = dayCompletes; state.chart.data.datasets[1].data = dayProcs; state.chart.update(); return; }
+    state.chart = new Chart(ctx, {
+      type:'bar',
+      data:{ labels: dates, datasets:[
+        { label:'Completed', data: dayCompletes },
+        { label:'Procrastinations', type:'line', data: dayProcs }
+      ]},
+      options:{
+        plugins:{ legend:{ labels:{ color:'#cfd6ff' } } },
+        scales:{ x:{ ticks:{ color:'#cfd6ff' }, grid:{ color:'rgba(255,255,255,.06)'} }, y:{ ticks:{ color:'#cfd6ff' }, grid:{ color:'rgba(255,255,255,.06)'} } }
+      }
+    });
+  }
+
+  // ====== Instance Lifecycle ======
+  function startInstance(dayKey, id, fromCheckin){
+    const inst = state.data.events[dayKey][id];
+    inst.status='progress';
+    if(inst.startMin==null){
+      // compare to scheduled for procrastination
+      const now = new Date(); const nowMin = now.getHours()*60 + now.getMinutes();
+      inst.startMin = nowMin;
+      if(nowMin > inst.schedMin && !fromCheckin){
+        inst.procrastinated=true; (state.data.events[dayKey].meta.procCount ||= 0)++; toast('Marked procrastination for '+inst.title);
+      }
+    }
+    db.save(state.data); renderToday();
+  }
+  function finishInstance(dayKey, id, fromCheck){
+    const inst = state.data.events[dayKey][id];
+    inst.status='done';
+    const now = new Date(); inst.endMin = now.getHours()*60 + now.getMinutes();
+    // if started after scheduled and we haven't marked yet (e.g., via check‑in)
+    if(!inst.procrastinated && inst.startMin!=null && inst.startMin > inst.schedMin){ inst.procrastinated=true; (state.data.events[dayKey].meta.procCount ||= 0)++; }
+    db.save(state.data); renderToday();
+  }
+  function revertInstance(dayKey,id){
+    const inst = state.data.events[dayKey][id]; inst.status='planned'; delete inst.startMin; delete inst.endMin; db.save(state.data); renderToday();
+  }
+  function reopenInstance(dayKey,id){
+    const inst = state.data.events[dayKey][id]; inst.status='planned'; db.save(state.data); renderToday();
+  }
+  function snoozeInstance(dayKey,id, mins){
+    const inst = state.data.events[dayKey][id]; inst.schedMin += mins; toast(`Snoozed ${inst.title} by ${mins} minutes`); db.save(state.data); renderToday();
+  }
+
+  // ====== Reminders Engine ======
+  function minutesNow(){ const n=new Date(); return n.getHours()*60+n.getMinutes(); }
+  function engineTick(){
+    const key = todayKey(new Date()); const ev = state.data.events[key]||{};
+    const nowM = minutesNow();
+
+    for(const [id,inst] of Object.entries(ev)){
+      if(id==='meta') continue;
+      // Lead reminder
+      if(!inst._leadFired && inst.lead>0 && nowM >= (inst.schedMin - inst.lead)){
+        inst._leadFired = true; notify('Upcoming: '+inst.title, `Starts at ${fromMinutes(inst.schedMin)}`); toast('Reminder: '+inst.title);
+      }
+      // At time reminder
+      if(!inst._atFired && nowM>=inst.schedMin){ inst._atFired=true; notify('Time for '+inst.title, `Duration ${inst.duration} min`); }
+      // Check‑in after offset
+      if(inst.status==='planned' && !inst._checkin && nowM >= inst.schedMin + Number(inst.checkin||0)){
+        inst._checkin = true; openCheckin(key, id, inst);
+      }
+      // Finish check 5m after expected end if in progress
+      const expectedEnd = (inst.startMin ?? inst.schedMin) + inst.duration;
+      if(inst.status==='progress' && !inst._doneAsk && nowM >= expectedEnd + 5){ inst._doneAsk=true; openDoneAsk(key,id,inst); }
+    }
+    db.save(state.data);
+  }
+
+  function openCheckin(dayKey,id,inst){
+    const dlg = document.getElementById('modal-checkin'); const txt = document.getElementById('checkin-text');
+    txt.textContent = `Did you start "${inst.title}" scheduled at ${fromMinutes(inst.schedMin)}?`;
+    state.pendingCheck = {dayKey,id,type:'start'};
+    dlg.showModal();
+  }
+  function openDoneAsk(dayKey,id,inst){
+    const dlg = document.getElementById('modal-done'); const txt = document.getElementById('done-text');
+    const exp = fromMinutes((inst.startMin ?? inst.schedMin)+inst.duration);
+    txt.textContent = `Should be done by ${exp}. Did you finish "${inst.title}"?`;
+    state.pendingCheck = {dayKey,id,type:'done'};
+    dlg.showModal();
+  }
+
+  // ====== Weekly Auto Report ======
+  function weeklyAuto(){
+    const now = new Date();
+    // Every Sunday 18:00 local
+    if(now.getDay()===0 && now.getHours()===18 && now.getMinutes()===0){
+      openWeekly(); notify('Weekly Report Ready','Open the app to review your stats.');
+    }
+  }
+
+  function openWeekly(){
+    const html = buildWeeklyHtml();
+    document.getElementById('weekly-html').innerHTML = html;
+    document.getElementById('modal-weekly').showModal();
+  }
+
+  function buildWeeklyHtml(){
+    const today = new Date();
+    const rows = [];
+    let totalP=0,totalD=0,totalPr=0;
+    for(let i=6;i>=0;i--){
+      const d=new Date(today); d.setDate(today.getDate()-i); const key=todayKey(d);
+      const ev=state.data.events[key]||{}; let p=0,dn=0,pr=0; for(const [k,v] of Object.entries(ev)){ if(k==='meta'){ pr=ev.meta?.procCount||0; continue;} p++; if(v.status==='done') dn++; }
+      totalP+=p; totalD+=dn; totalPr+=pr;
+      rows.push(`<tr><td>${d.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'2-digit'})}</td><td>${p}</td><td>${dn}</td><td>${pr}</td><td>${p?Math.round(dn/p*100):0}%</td></tr>`);
+    }
+    const rate = totalP? Math.round(totalD/totalP*100):0;
+    return `
+      <div class="stats" style="margin:6px 0 10px">
+        <div class="stat"><h5>Tasks Completed</h5><div class="value">${totalD}</div></div>
+        <div class="stat"><h5>Planned Tasks</h5><div class="value">${totalP}</div></div>
+        <div class="stat"><h5>Procrastinations</h5><div class="value">${totalPr}</div></div>
+        <div class="stat"><h5>Completion Rate</h5><div class="value">${rate}%</div></div>
+      </div>
+      <div style="overflow:auto; max-height:50vh">
+        <table style="width:100%; border-collapse:collapse">
+          <thead><tr style="color:#9aa3b2"><th style="text-align:left">Day</th><th>Planned</th><th>Done</th><th>Procr.</th><th>Rate</th></tr></thead>
+          <tbody>
+            ${rows.join('')}
+          </tbody>
+        </table>
+      </div>`
+  }
+
+  // ====== Plan Modal ======
+  function openPlan(){
+    const wrap = document.getElementById('plan-days'); wrap.innerHTML='';
+    const base = new Date();
+    for(let i=0;i<7;i++){
+      const d=new Date(base); d.setDate(base.getDate()+i);
+      const label = dayName(d);
+      const row = document.createElement('div'); row.className='panel';
+      const key = todayKey(d);
+      row.innerHTML = `<div class="inner"><div style="display:flex; align-items:center; justify-content:space-between"><b>${label}</b><span class='tag'>${key}</span></div>
+        <div data-day='${key}' class='plan-list' style='margin-top:10px'></div>
+        <div style='display:flex; gap:8px; margin-top:10px'>
+          <input placeholder='Add one-off task (title)' class='plan-title' />
+          <input type='time' class='plan-time' />
+          <input type='number' value='30' min='1' class='plan-dur' style='width:90px' />
+          <button class='secondary add-plan'>Add</button>
+        </div></div>`;
+      wrap.appendChild(row);
+    }
+    document.getElementById('modal-plan').showModal();
+
+    wrap.querySelectorAll('.add-plan').forEach(btn=>{
+      btn.onclick = (e)=>{
+        e.preventDefault();
+        const card = e.target.closest('.inner');
+        const title = card.querySelector('.plan-title').value.trim();
+        const time = card.querySelector('.plan-time').value;
+        const dur = Number(card.querySelector('.plan-dur').value||30);
+        const dayKey = card.querySelector('.plan-list').dataset.day;
+        if(!title||!time) return toast('Enter title & time');
+        // create one-off task
+        const t = { id: uid(), title, category:'Other', type:'oneoff', time, duration:dur, lead:0, checkin:5, date:dayKey };
+        state.data.tasks.push(t); addInstance({ toString(){ return dayKey; } }, t); // ensure instance
+        db.save(state.data);
+        const list = card.querySelector('.plan-list');
+        const p = document.createElement('div'); p.className='meta'; p.textContent = `${time} · ${title}`; list.appendChild(p);
+        card.querySelector('.plan-title').value='';
+      }
+    })
+  }
+
+  // ====== Forms ======
+  document.getElementById('task-form').onsubmit = (e)=>{
+    e.preventDefault();
+    const id = document.getElementById('task-id').value || uid();
+    const task = {
+      id,
+      title: document.getElementById('title').value.trim(),
+      category: document.getElementById('category').value,
+      type: document.getElementById('type').value,
+      time: document.getElementById('time').value,
+      duration: Number(document.getElementById('duration').value||30),
+      lead: Number(document.getElementById('lead').value||0),
+      checkin: Number(document.getElementById('checkin').value||5),
+      days: Array.from(document.querySelectorAll('.day:checked')).map(x=>Number(x.value)),
+      date: document.getElementById('oneoff-date').value || undefined
+    };
+    if(!task.title || !task.time) return toast('Please enter a title and time');
+    const existingIdx = state.data.tasks.findIndex(t=>t.id===id);
+    if(existingIdx>-1) state.data.tasks[existingIdx]=task; else state.data.tasks.push(task);
+    db.save(state.data);
+    toast('Task saved');
+    scheduleInstancesForDay(new Date());
+    renderToday();
+    e.target.reset();
+  };
+
+  document.getElementById('reset-form').onclick = ()=> document.getElementById('task-form').reset();
+
+  document.getElementById('quick-form').onsubmit = (e)=>{
+    e.preventDefault();
+    const title = document.getElementById('quick-title').value.trim();
+    const time = document.getElementById('quick-time').value;
+    const duration = Number(document.getElementById('quick-duration').value||20);
+    const lead = Number(document.getElementById('quick-lead').value||0);
+    if(!title||!time) return toast('Enter title & time');
+    const t={id:uid(), title, category:'Other', type:'oneoff', time, duration, lead, checkin:5, date: todayKey(new Date())};
+    state.data.tasks.push(t);
+    scheduleInstancesForDay(new Date());
+    db.save(state.data);
+    renderToday();
+    e.target.reset();
+  }
+
+  document.getElementById('export').onclick = ()=>{
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'smart-habit-planner-data.json'; a.click();
+  }
+  document.getElementById('import').onclick = ()=>{
+    const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json'; inp.onchange = ()=>{
+      const file = inp.files[0]; const rd = new FileReader(); rd.onload = ()=>{ try{ state.data = JSON.parse(rd.result); db.save(state.data); renderToday(); toast('Imported data'); }catch(e){ toast('Invalid file'); } }; rd.readAsText(file);
+    }; inp.click();
+  }
+  document.getElementById('wipe').onclick = ()=>{ if(confirm('Wipe all local data?')){ localStorage.removeItem('shp:data'); state.data = {tasks:[], events:{}}; renderToday(); } }
+
+  document.getElementById('refresh').onclick = ()=> renderToday();
+  document.getElementById('btn-notify').onclick = async()=>{ const ok = await ensureNotifications(); toast(ok?'Notifications enabled':'Permission denied'); }
+  document.getElementById('btn-weekly').onclick = ()=> openWeekly();
+  document.getElementById('btn-new-plan').onclick = ()=> openPlan();
+
+  // Check‑in modal events
+  document.getElementById('checkin-form').addEventListener('close', (e)=>{});
+  document.getElementById('modal-checkin').addEventListener('close', (e)=>{
+    const res = document.getElementById('modal-checkin').returnValue;
+    const pc = state.pendingCheck; if(!pc) return; const {dayKey,id} = pc;
+    if(res==='started') startInstance(dayKey,id,true);
+    if(res==='later'){ (state.data.events[dayKey].meta.procCount ||= 0)++; db.save(state.data); toast('Logged procrastination'); }
+    if(res==='done') finishInstance(dayKey,id,true);
+    state.pendingCheck = null;
+  });
+
+  // Done ask modal events
+  document.getElementById('modal-done').addEventListener('close', (e)=>{
+    const res = document.getElementById('modal-done').returnValue; const pc = state.pendingCheck; if(!pc) return; const {dayKey,id} = pc;
+    if(res==='completed') finishInstance(dayKey,id,true);
+    if(res==='snooze') snoozeInstance(dayKey,id,10);
+    // if notyet -> no change
+    state.pendingCheck = null;
+  });
+
+  // Plan modal save
+  document.getElementById('modal-plan').addEventListener('close', (e)=>{
+    renderToday();
+  });
+
+  // ====== Toast ======
+  function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none', 2200); }
+
+  // ====== Boot ======
+  function boot(){
+    // prepare today schedule from tasks
+    const today = new Date();
+    for(let i=-1;i<7;i++){ const d=new Date(today); d.setDate(today.getDate()+i); scheduleInstancesForDay(d); }
+    renderToday();
+    setInterval(engineTick, 30*1000); // check every 30s
+    setInterval(weeklyAuto, 60*1000); // check hourly/minutely
+
+    // First‑run plan prompt
+    if(!localStorage.getItem('shp:first')){ openPlan(); localStorage.setItem('shp:first','1'); }
+  }
+
+  boot();
+  </script>
+</body>
+</html>
